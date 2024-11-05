@@ -26,12 +26,19 @@ class _HomePageState extends State<HomePage> {
   void _connectWebSocket() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('jwt_token');
+    String? userId = prefs.getString('user_id');
 
-    if (token != null) {
-      // Replace with your server address and include the token as a query parameter
-      // Use the API_URL from the .env file
+    if (token != null && userId != null) {
       final String? apiUrl = dotenv.env['LOCAL_API_SOCKET_URL'];
-      final uri = Uri.parse('$apiUrl/?token=$token');
+
+      if (apiUrl == null) {
+        _showDialog("Error", "WebSocket URL is not set. Please check the configuration.");
+        return;
+      }
+
+      String clientType = "user"; // Set the client type accordingly
+
+      final uri = Uri.parse('$apiUrl/?token=$token&userId=$userId&type=$clientType');
 
       channel = IOWebSocketChannel.connect(uri);
 
@@ -43,19 +50,18 @@ class _HomePageState extends State<HomePage> {
       }, onError: (error) {
         print('WebSocket error: $error');
         removeToken();
-        _showDialog(error, "Automatic login failed, so you need to login manually");
+        _showDialog("Error", "Automatic login failed, so you need to login manually");
       }, onDone: () {
         print('WebSocket connection closed');
         removeToken();
-        _showDialog("Connection Ended","Connection was closed from remote server");
+        _showDialog("Connection Ended", "Connection was closed from remote server");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
         );
       });
     } else {
-      print('No JWT token found');
-      // Navigate to the home page
+      print('No JWT token or user ID found');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -63,11 +69,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
   Future<void> removeToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove('jwt_token');  // Replace 'jwt_token' with the key you want to remove
-    print('JWT token removed');
+    prefs.remove('jwt_token');
+    prefs.remove('user_id');
+    print('JWT token and user ID removed');
   }
 
   @override

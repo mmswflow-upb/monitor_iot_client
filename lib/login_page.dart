@@ -39,15 +39,26 @@ class _LoginPageState extends State<LoginPage> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final String token = responseData['token'];
 
-        // Store the token locally
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwt_token', token);
+        // Decode the JWT to get the user ID
+        final parts = token.split('.');
+        if (parts.length == 3) {
+          final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+          final Map<String, dynamic> decodedPayload = jsonDecode(payload);
+          final String userId = decodedPayload['id'];
 
-        // Navigate to the home page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
+          // Store the token and userId locally
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_token', token);
+          await prefs.setString('user_id', userId);
+
+          // Navigate to the home page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        } else {
+          _showDialog('Error', 'Invalid JWT token.');
+        }
       } else {
         // Handle server errors
         _showDialog('Login Failed', jsonDecode(response.body)['message']);
@@ -89,38 +100,39 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Monitor.IoT'),
+      appBar: AppBar(
+        title: const Text('Monitor.IoT'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+          // Email input field
+          TextField(
+          controller: _emailController,
+          decoration: const InputDecoration(labelText: 'Email'),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Email input field
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              // Password input field
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              // Login button
-              ElevatedButton(
-                onPressed: _login,
-                child: const Text('Login'),
-              ),
-              const SizedBox(height: 10),
-              // Navigate to registration page
-              TextButton(
-                onPressed: _navigateToRegister,
-                child: const Text('Don\'t have an account? Register here'),
-              ),
-            ],
+        // Password input field
+        TextField(
+          controller: _passwordController,
+          decoration: const InputDecoration(labelText: 'Password'),
+          obscureText: true,
+        ),
+        const SizedBox(height: 20),
+        // Login button
+        ElevatedButton(
+          onPressed: _login,
+          child: const Text('Login'),
+        ),
+        const SizedBox(height: 10),
+        // Navigate to registration page
+        TextButton(
+          onPressed: _navigateToRegister,
+          child: const Text('Don\'t have an account? Register here'),
           ),
-        ));
+          ],
+        ),
+      ),
+    );
   }
 }

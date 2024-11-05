@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
     final String email = _emailController.text.trim();
     final String password = _passwordController.text;
 
-    final String? apiUrl = dotenv.env['LOCAL_API_URL'];
+    final String? apiUrl = dotenv.env['REMOTE_API_URL'];
     final url = Uri.parse('$apiUrl/login');
 
     try {

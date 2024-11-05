@@ -21,7 +21,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final String password = _passwordController.text;
 
     // Use the API_URL from the .env file
-    final String? apiUrl = dotenv.env['LOCAL_API_URL'];
+    final String? apiUrl = dotenv.env['REMOTE_API_URL'];
     final url = Uri.parse('$apiUrl/register');
 
     try {

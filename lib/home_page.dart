@@ -29,7 +29,7 @@ class _HomePageState extends State<HomePage> {
     String? userId = prefs.getString('user_id');
 
     if (token != null && userId != null) {
-      final String? apiUrl = dotenv.env['LOCAL_API_SOCKET_URL'];
+      final String? apiUrl = dotenv.env['REMOTE_API_SOCKET_URL'];
 
       if (apiUrl == null) {
         _showDialog("Error", "WebSocket URL is not set. Please check the configuration.");
@@ -71,9 +71,17 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> removeToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.remove('jwt_token');
-    prefs.remove('user_id');
+    await prefs.remove('jwt_token');
+    await prefs.remove('user_id');
     print('JWT token and user ID removed');
+  }
+
+  void _logout() async {
+    await removeToken();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
   }
 
   @override
@@ -88,11 +96,27 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home - Monitor.IoT'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
       ),
       body: Center(
-        child: Text(
-          'Random Number: $_number',
-          style: const TextStyle(fontSize: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Random Number: $_number',
+              style: const TextStyle(fontSize: 24),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _logout,
+              child: const Text('Log Out'),
+            ),
+          ],
         ),
       ),
     );

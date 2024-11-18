@@ -14,8 +14,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String _number = '';
+  String _inputText = ''; // To hold the TextField input
   late IOWebSocketChannel channel;
+  List<String> _messages = []; // To store received messages
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _HomePageState extends State<HomePage> {
     String? userId = prefs.getString('user_id');
 
     if (token != null && userId != null) {
-      final String? apiUrl = dotenv.env['REMOTE_API_SOCKET_URL'];
+      final String? apiUrl = dotenv.env['LOCAL_API_SOCKET_URL'];
 
       if (apiUrl == null) {
         _showDialog("Error", "WebSocket URL is not set. Please check the configuration.");
@@ -43,9 +44,14 @@ class _HomePageState extends State<HomePage> {
       channel = IOWebSocketChannel.connect(uri);
 
       channel.stream.listen((message) {
-        final data = jsonDecode(message);
         setState(() {
-          _number = data['number'].toString();
+          // Handle all types of data (JSON, String, or Number)
+          try {
+            final decoded = jsonDecode(message); // Try parsing as JSON
+            _messages.add('Received JSON: $decoded');
+          } catch (e) {
+            _messages.add('Received: $message'); // Fallback for non-JSON
+          }
         });
       }, onError: (error) {
         print('WebSocket error: $error');
@@ -76,7 +82,20 @@ class _HomePageState extends State<HomePage> {
     print('JWT token and user ID removed');
   }
 
+  @override
+  void dispose() {
+    if (channel != null) {
+      channel.sink.close();
+      print("WebSocket connection closed.");
+    }
+    super.dispose();
+  }
+
   void _logout() async {
+    if (channel != null) {
+      channel.sink.close();
+      print("WebSocket connection closed during logout.");
+    }
     await removeToken();
     Navigator.pushReplacement(
       context,
@@ -84,11 +103,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  void dispose() {
-    channel.sink.close();
-    super.dispose();
+  void _sendMessage() {
+    if (_inputText.isNotEmpty) {
+      try {
+        channel.sink.add(_inputText); // Send the text to the WebSocket server
+        print("Message sent: $_inputText");
+        setState(() {
+          _messages.add('Sent: $_inputText'); // Add sent message to log
+          _inputText = ''; // Clear the input field after sending
+        });
+      } catch (e) {
+        print("Error sending message: $e");
+        _showDialog("Error", "Failed to send message to the server.");
+      }
+    } else {
+      _showDialog("Error", "Input field is empty.");
+    }
   }
+
+
 
   // Build method
   @override
@@ -103,18 +136,36 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Random Number: $_number',
-              style: const TextStyle(fontSize: 24),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Enter a message',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _inputText = value;
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _sendMessage,
+              child: const Text('Send Message'),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _logout,
-              child: const Text('Log Out'),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(_messages[index]),
+                  );
+                },
+              ),
             ),
           ],
         ),

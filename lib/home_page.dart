@@ -30,7 +30,7 @@ class _HomePageState extends State<HomePage> {
     String? userId = prefs.getString('user_id');
 
     if (token != null && userId != null) {
-      final String? apiUrl = dotenv.env['LOCAL_API_SOCKET_URL'];
+      final String? apiUrl = dotenv.env['REMOTE_API_SOCKET_URL'];
 
       if (apiUrl == null) {
         _showDialog("Error", "WebSocket URL is not set. Please check the configuration.");

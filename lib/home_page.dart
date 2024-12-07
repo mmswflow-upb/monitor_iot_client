@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           try {
             final decoded = jsonDecode(message);
-            print('Decoded Object: ' + decoded.toString());
+            print('Decoded Object: $decoded');
             if (decoded['devices'] != null) {
               // Handle devices array from the server
               devices = List<Map<String, dynamic>>.from(decoded['devices']);
@@ -127,17 +127,17 @@ class _HomePageState extends State<HomePage> {
                 },
                 pickerAreaHeightPercent: 0.8,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   _setRGBColor(device);
                   Navigator.of(context).pop(); // Close the dialog
                 },
-                child: Text('Set Color'),
+                child: const Text('Set Color'),
               ),
             ],
           )
-              : Text('No controls available for this device.'),
+              : const Text('No controls available for this device.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -202,6 +202,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home - Monitor.IoT'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -219,7 +220,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Expanded(
               child: devices.isEmpty
-                  ? Center(child: Text('No devices connected.'))
+                  ? const Center(child: Text('No devices connected.'))
                   : GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,  // 2 or 3 columns depending on screen width
@@ -250,16 +251,16 @@ class _HomePageState extends State<HomePage> {
                               height: 40,
                             )
                                 : device['deviceType'] == 'Camera'
-                                ? Icon(Icons.camera_alt, size: 40)
+                                ? const Icon(Icons.camera_alt, size: 40)
                                 : Image.asset(
                               'assets/icon/Camera.png',
                               width: 40,
                               height: 40,
                             ),
-                            SizedBox(height: 8),  // Reduce space between image and text
+                            const SizedBox(height: 8),  // Reduce space between image and text
                             Text(
                               device['deviceName'] ?? 'Unknown Device',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 14,  // Smaller font size
                                 fontWeight: FontWeight.w500,  // Medium weight font for better readability
                               ),

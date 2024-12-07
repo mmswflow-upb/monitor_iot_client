@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "444541980631",
+    "project_id": "monitor-iot-81909",
+    "storage_bucket": "monitor-iot-81909.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:444541980631:android:44200a53366f415b310592",
+        "android_client_info": {
+          "package_name": "com.monitor_iot_client.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAg0gi_p4fKx4FLwt9TQLHoj-0VlCTGQfY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

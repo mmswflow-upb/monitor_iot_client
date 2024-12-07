@@ -53,8 +53,8 @@ class _HomePageState extends State<HomePage> {
             if (decoded['devices'] != null) {
               // Handle devices array from the server
               devices = List<Map<String, dynamic>>.from(decoded['devices']);
-            } else if (decoded['type'] == 'ping') {
-              final pongResponse = jsonEncode({'type': 'pong', 'message': 'pong'});
+            } else if (decoded['messageType'] == 'ping') {
+              final pongResponse = jsonEncode({'messageType': 'pong', 'message': 'pong'});
               try {
                 channel.sink.add(pongResponse);
               } catch (pongErr) {

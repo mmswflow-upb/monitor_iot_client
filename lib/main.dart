@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:monitor_iot_client/home_page.dart';
+import 'package:monitor_iot_client/pages/home_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Import dotenv package
 
 void main() async {

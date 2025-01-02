@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'device_card.dart';
 
 class DeviceGrid extends StatelessWidget {
@@ -14,15 +13,13 @@ class DeviceGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return devices.isEmpty
-        ? const Center(child: Text('No devices connected.'))
-        : GridView.builder(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
+    // A simple grid layout: 2 columns, can be adjusted as needed
+    return GridView.builder(
       itemCount: devices.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.0,
+      ),
       itemBuilder: (context, index) {
         final device = devices[index];
         return DeviceCard(

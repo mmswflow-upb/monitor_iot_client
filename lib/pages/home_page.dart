@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
@@ -16,7 +18,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late IOWebSocketChannel channel;
-  List<Map<String, dynamic>> devices = [];
+  final ValueNotifier<List<Map<String, dynamic>>> devicesNotifier =  ValueNotifier<List<Map<String, dynamic>>>([]);
+  final Map<String, Completer<void>> openPopups = {}; // Track open popups by deviceId
+
   Color _currentColor = Colors.white; // Default color for the RGB lamp
 
   @override
@@ -25,7 +29,6 @@ class _HomePageState extends State<HomePage> {
     _connectWebSocket();
   }
 
-  // Connect to WebSocket
   void _connectWebSocket() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('jwt_token');
@@ -39,42 +42,51 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      String clientType = "user"; // Set client type as user
-
+      String clientType = "user";
       final uri = Uri.parse('$apiUrl/?token=$token&userId=$userId&type=$clientType');
 
       channel = IOWebSocketChannel.connect(uri);
 
       channel.stream.listen((message) {
-        setState(() {
-          try {
-            final decoded = jsonDecode(message);
-            if (decoded['messageType'] == 'updateDevicesList') {
-              devices = List<Map<String, dynamic>>.from(decoded['devices']);
-            } else if (decoded['messageType'] == 'ping') {
-              final pongResponse = jsonEncode({'messageType': 'pong', 'message': 'pong'});
-              try {
-                channel.sink.add(pongResponse);
-              } catch (pongErr) {
-                removeToken();
-                _showDialog("Connection Ended", "Connection was closed from the remote server.");
-                _navigateToLogin();
-              }
-            }
-          } catch (e) {
+        try {
+          final decoded = jsonDecode(message);
+          if (decoded['messageType'] == 'updateDevicesList') {
+            _updateDevicesList(List<Map<String, dynamic>>.from(decoded['devices']));
+          } else if (decoded['messageType'] == 'ping') {
+            final pongResponse = jsonEncode({'messageType': 'pong', 'message': 'pong'});
+            channel.sink.add(pongResponse);
           }
-        });
+        } catch (e) {
+        }
       }, onError: (error) {
         removeToken();
         _showDialog("Error", "Automatic login failed. You need to log in manually.");
       }, onDone: () {
         removeToken();
         _showDialog("Connection Ended", "Connection was closed from the remote server.");
-        _navigateToLogin();  // Navigate back to login page when connection closes
+        _navigateToLogin();
       });
     } else {
-      _navigateToLogin();  // Navigate to login if no token or user ID is found
+      _navigateToLogin();
     }
+  }
+
+  void _updateDevicesList(List<Map<String, dynamic>> updatedDevices) {
+    final currentDeviceList = devicesNotifier.value;
+    final updatedDeviceIds = updatedDevices.map((d) => d['deviceId']).toSet();
+    final currentDeviceIds = currentDeviceList.map((d) => d['deviceId']).toSet();
+
+    // Close popups for removed devices
+    for (final removedDeviceId in currentDeviceIds.difference(updatedDeviceIds)) {
+      if (openPopups.containsKey(removedDeviceId)) {
+        openPopups[removedDeviceId]?.complete(); // Signal the popup to close
+        openPopups.remove(removedDeviceId);
+      }
+    }
+
+    // Update devices list
+    final updatedDeviceList = [...updatedDevices];
+    devicesNotifier.value = updatedDeviceList;
   }
 
   Future<void> removeToken() async {
@@ -108,18 +120,53 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Called by the device card tap callback
   void _showDevicePopup(Map<String, dynamic> device) {
-    if (device['data'] == null || device['data'].isEmpty) {
-      _showDialog("Error", "Device data is not available.");
-      return;
+    final deviceId = device['deviceId'];
+
+    // Find the latest device data
+    final refreshedDevice = devicesNotifier.value.firstWhere(
+          (d) => d['deviceId'] == deviceId,
+      orElse: () => device,
+    );
+
+    // Create a ValueNotifier with the latest device data
+    final deviceNotifier = ValueNotifier<Map<String, dynamic>>(refreshedDevice);
+
+    // Close existing popup for the device if it's open
+    if (openPopups.containsKey(deviceId)) {
+      openPopups[deviceId]?.complete();
+      openPopups.remove(deviceId);
     }
+
+    // Track the new popup
+    final popupCompleter = Completer<void>();
+    openPopups[deviceId] = popupCompleter;
+
+    // Update the popup dynamically when new data is received
+    devicesNotifier.addListener(() {
+      final updatedDevice = devicesNotifier.value.firstWhere(
+            (d) => d['deviceId'] == deviceId,
+        orElse: () => deviceNotifier.value,
+      );
+
+      // If device is removed from the list, also complete the popup (close it)
+      if (!devicesNotifier.value.any((d) => d['deviceId'] == deviceId)) {
+        if (!popupCompleter.isCompleted) {
+          popupCompleter.complete();
+        }
+        return;
+      }
+
+      if (updatedDevice != deviceNotifier.value) {
+        deviceNotifier.value = updatedDevice;
+      }
+    });
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return DevicePopupDialog(
-          device: device,
+          deviceNotifier: deviceNotifier,
           currentColor: _currentColor,
           onColorChanged: (color) {
             setState(() {
@@ -127,28 +174,54 @@ class _HomePageState extends State<HomePage> {
             });
           },
           onSetColorPressed: () {
-            _updateDeviceState(device);
-            Navigator.of(context).pop();
+            _updateDeviceState(deviceNotifier.value);
+            // You can decide whether or not to pop the dialog here
+            // Navigator.of(context).pop();
           },
           onActiveChanged: (bool active) {
-            // Update the device object locally
-            device["data"]["active"] = active;
+            final updatedDevice = {
+              ...deviceNotifier.value,
+              'data': {
+                ...deviceNotifier.value['data'],
+                'active': active,
+                'binaryFrame': active ? deviceNotifier.value['data']['binaryFrame'] : '',
+              },
+            };
 
-            // If you have a dedicated function to update the device on the server:
-            // _updateDevice(device);
+            // Clear binaryFrame if camera is deactivated
+            if (!active) {
+              updatedDevice['data']['binaryFrame'] = '';
+            }
 
-            // If the camera device doesn't need RGB updates, you could write a separate
-            // function similar to _setRGBColor for updating camera states, for example:
-            _updateDeviceState(device);
+            deviceNotifier.value = updatedDevice;
+            _updateDeviceState(updatedDevice);
           },
         );
       },
-    );
+    ).then((_) {
+      // Cleanup after dialog is closed manually
+      openPopups.remove(deviceId);
+    });
+
+    // Automatically close popup if the device is removed
+    popupCompleter.future.then((_) {
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+    });
   }
+
+
+
+
+
 
   void _updateDeviceState(Map<String, dynamic> device) {
     try {
-      // Convert the device object to a JSON string
+
+      if(device['deviceType'] == 'Camera'){
+        device['data']['binaryFrame'] = '';
+      }
       final message = jsonEncode({
         "deviceId": device["deviceId"],
         "deviceName": device["deviceName"],
@@ -156,17 +229,14 @@ class _HomePageState extends State<HomePage> {
         "data": device["data"], // Contains "active" or other data
       });
 
-      // Send the JSON message via WebSocket
+
+
       channel.sink.add(message);
 
-      print("Updated device state sent: $message");
     } catch (e) {
-      print("Error sending updated device state: $e");
       _showDialog("Error", "Failed to update the device state.");
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -187,9 +257,14 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: DeviceGrid(
-          devices: devices,
-          onDeviceTap: _showDevicePopup,
+        child: ValueListenableBuilder<List<Map<String, dynamic>>>(
+          valueListenable: devicesNotifier,
+          builder: (context, devices, _) {
+            return DeviceGrid(
+              devices: devices,
+              onDeviceTap: _showDevicePopup,
+            );
+          },
         ),
       ),
     );
@@ -198,6 +273,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     channel.sink.close();
+    devicesNotifier.dispose();
     super.dispose();
   }
 }

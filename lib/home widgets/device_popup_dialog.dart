@@ -3,16 +3,25 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
+
 class DevicePopupDialog extends StatefulWidget {
-  final Map<String, dynamic> device;
+  final ValueNotifier<Map<String, dynamic>> deviceNotifier;
+
+  // Current color for an RGB lamp
   final Color currentColor;
+
+  // Called whenever a new color is selected
   final ValueChanged<Color> onColorChanged;
+
+  // Called when user clicks "Set Color" or any final action for color
   final VoidCallback onSetColorPressed;
-  final ValueChanged<bool> onActiveChanged; // Callback when active state changes for camera
+
+  // Called when camera or device "active" state toggles
+  final ValueChanged<bool> onActiveChanged;
 
   const DevicePopupDialog({
     Key? key,
-    required this.device,
+    required this.deviceNotifier,
     required this.currentColor,
     required this.onColorChanged,
     required this.onSetColorPressed,
@@ -24,94 +33,128 @@ class DevicePopupDialog extends StatefulWidget {
 }
 
 class _DevicePopupDialogState extends State<DevicePopupDialog> {
-  bool isActive = false;
-
   @override
   void initState() {
     super.initState();
-    // Initialize isActive if device data is present and is a camera
-    if (widget.device['deviceType'] == 'Camera' || widget.device['deviceType'] == 'Camera-Streamer') {
-      isActive = widget.device['data']?['active'] ?? false;
-    }
+    // We could add any initialization logic here if needed
   }
 
   @override
   Widget build(BuildContext context) {
-    Widget content;
+    // We use ValueListenableBuilder so that whenever deviceNotifier.value changes,
+    // only this popup's contents rebuild, not the entire UI or the popup itself.
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: widget.deviceNotifier,
+      builder: (context, device, _) {
+        final String deviceType = device['deviceType'] ?? 'Unknown';
+        final String deviceName = device['deviceName'] ?? 'Unnamed Device';
 
-    if (widget.device['deviceType'] == 'RGB-Lamp') {
-      // RGB Lamp controls
-      content = Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Choose a color for ${widget.device['deviceName']}'),
-          ColorPicker(
-            pickerColor: widget.currentColor,
-            onColorChanged: widget.onColorChanged,
-            pickerAreaHeightPercent: 0.8,
+        return AlertDialog(
+          title: Text('$deviceName ($deviceType)'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Show different content based on device type:
+                if (deviceType == 'RGB-Lamp') _buildRgbLampContent(device),
+                if (deviceType == 'Camera') _buildCameraContent(device),
+                if (deviceType == 'TempSensor') _buildTempSensorContent(device),
+                // Add more if-conditions for other device types...
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: widget.onSetColorPressed,
-            child: const Text('Set Color'),
-          ),
-        ],
-      );
-    } else if (widget.device['deviceType'] == 'Camera' || widget.device['deviceType'] == 'Camera-Streamer') {
-      // Camera controls
-      final imageData = widget.device['data']?['imageBinaryData'];
-      Uint8List? imageBytes;
-      if (isActive && imageData != null) {
-        imageBytes = base64Decode(imageData);
-      }
+          actions: [
+            // Example action: Close if user wants to manually close
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-      content = Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Text('Active Stream'),
-              Switch(
-                value: isActive,
-                onChanged: (val) {
-                  setState(() {
-                    isActive = val;
-                  });
-                  // Notify parent about the active state change
-                  widget.onActiveChanged(val);
-
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (isActive && imageBytes != null)
-            Image.memory(
-              imageBytes,
-              width: 200,
-              height: 200,
-              fit: BoxFit.cover,
-            )
-          else if (isActive)
-            const Text('Waiting for image...'),
-          if (!isActive)
-            const Text('Turn on the stream to view the image feed.'),
-        ],
-      );
-    } else {
-      // No controls available for other device types
-      content = const Text('No controls available for this device.');
-    }
-
-    return AlertDialog(
-      title: Text('Control ${widget.device['deviceName']}'),
-      content: content,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+  /// Builds content for an RGB Lamp device
+  Widget _buildRgbLampContent(Map<String, dynamic> device) {
+    return Column(
+      children: [
+        // Use a color picker to let user pick color
+        BlockPicker(
+          pickerColor: widget.currentColor,
+          onColorChanged: (color) {
+            widget.onColorChanged(color);
+          },
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: widget.onSetColorPressed,
+          child: const Text('Set Color'),
         ),
       ],
     );
   }
+
+  /// Builds content for a Camera device
+  Widget _buildCameraContent(Map<String, dynamic> device) {
+    // Example: We have 'data' with 'binaryFrame' as base64 image
+    final bool isActive = device['data']['active'] ?? false;
+    final String base64Image = device['data']['binaryFrame'] ?? '';
+
+    return Column(
+      children: [
+        // Toggle camera on/off
+        SwitchListTile(
+          title: const Text('Camera Active'),
+          value: isActive,
+          onChanged: (newValue) {
+            widget.onActiveChanged(newValue);
+          },
+        ),
+        const SizedBox(height: 8),
+        if (base64Image.isNotEmpty)
+        // We'll decode the base64 string into a Dart `Uint8List` and display
+          Image.memory(
+            _decodeBase64(base64Image),
+            width: 200,
+            height: 200,
+            fit: BoxFit.contain,
+          )
+        else
+          const Text('No camera feed'),
+      ],
+    );
+  }
+
+  /// Builds content for a temperature/humidity sensor
+  Widget _buildTempSensorContent(Map<String, dynamic> device) {
+    final double? temperature = device['data']['temperature']?.toDouble();
+    final double? humidity = device['data']['humidity']?.toDouble();
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Temperature:'),
+            Text(temperature != null ? '${temperature.toStringAsFixed(1)} °C' : 'N/A'),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Humidity:'),
+            Text(humidity != null ? '${humidity.toStringAsFixed(1)} %' : 'N/A'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Decodes a base64 string to a Uint8List
+  Uint8List _decodeBase64(String base64String) {
+    return base64.decode(base64String);
+  }
 }
+

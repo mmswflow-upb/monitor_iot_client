@@ -41,7 +41,6 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       // Handle network or parsing errors
       _showDialog('Error', 'An error occurred. Please try again.');
-      print('Registration error: $e');
     }
   }
 

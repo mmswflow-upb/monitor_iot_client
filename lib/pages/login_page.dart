@@ -66,7 +66,6 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       // Handle network or parsing errors
       _showDialog('Error', 'An error occurred. Please try again.');
-      print('Login error: $e');
     }
   }
 

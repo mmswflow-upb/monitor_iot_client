@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-
+import '../utils/circular_gauge.dart';
 
 class DevicePopupDialog extends StatefulWidget {
   final ValueNotifier<Map<String, dynamic>> deviceNotifier;
@@ -58,7 +58,7 @@ class _DevicePopupDialogState extends State<DevicePopupDialog> {
                 // Show different content based on device type:
                 if (deviceType == 'RGB-Lamp') _buildRgbLampContent(device),
                 if (deviceType == 'Camera') _buildCameraContent(device),
-                if (deviceType == 'TempSensor') _buildTempSensorContent(device),
+                if (deviceType == 'Temperature-Humidity-Sensor') _buildTempSensorContent(device),
                 // Add more if-conditions for other device types...
               ],
             ),
@@ -126,31 +126,36 @@ class _DevicePopupDialogState extends State<DevicePopupDialog> {
     );
   }
 
-  /// Builds content for a temperature/humidity sensor
+  /// Builds content for a Temperature-Humidity-Sensor
   Widget _buildTempSensorContent(Map<String, dynamic> device) {
     final double? temperature = device['data']['temperature']?.toDouble();
-    final double? humidity = device['data']['humidity']?.toDouble();
+    final double? humidity    = device['data']['humidity']?.toDouble();
 
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Temperature:'),
-            Text(temperature != null ? '${temperature.toStringAsFixed(1)} °C' : 'N/A'),
-          ],
+        // Temperature gauge
+        CircularGaugeWithIcon(
+          value: temperature ?? 0.0,
+          minValue: -10,
+          maxValue: 50,
+          unit: '°C',
+          icon: Icons.thermostat,
+          rangeColor: Colors.red,
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Humidity:'),
-            Text(humidity != null ? '${humidity.toStringAsFixed(1)} %' : 'N/A'),
-          ],
+        // Humidity gauge
+        CircularGaugeWithIcon(
+          value: humidity ?? 0.0,
+          minValue: 0,
+          maxValue: 100,
+          unit: '%',
+          icon: Icons.water_drop, // or Icons.opacity for older Flutter versions
+          rangeColor: Colors.blue,
         ),
       ],
     );
   }
+
 
   /// Decodes a base64 string to a Uint8List
   Uint8List _decodeBase64(String base64String) {

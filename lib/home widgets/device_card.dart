@@ -25,7 +25,7 @@ class DeviceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Image based on device type
+              // Image/Icon based on device type
               if (device['deviceType'] == 'RGB-Lamp')
                 Image.asset(
                   'assets/icon/RGB_Lamp.png',
@@ -34,12 +34,18 @@ class DeviceCard extends StatelessWidget {
                 )
               else if (device['deviceType'] == 'Camera')
                 const Icon(Icons.camera_alt, size: 40)
-              else
-                Image.asset(
-                  'assets/icon/Camera.png',
-                  width: 40,
-                  height: 40,
-                ),
+              else if (device['deviceType'] == 'Temperature-Humidity-Sensor')
+                  Image.asset(
+                    'assets/icon/temp_humidity.png',
+                    width: 40,
+                    height: 40,
+                  )
+                else
+                  Image.asset(
+                    'assets/icon/Camera.png',
+                    width: 40,
+                    height: 40,
+                  ),
               const SizedBox(height: 8),
               Text(
                 device['deviceName'] ?? 'Unknown Device',

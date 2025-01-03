@@ -13,12 +13,14 @@ class DeviceGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A simple grid layout: 2 columns, can be adjusted as needed
     return GridView.builder(
+      padding: const EdgeInsets.all(8.0),
       itemCount: devices.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.0,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 320, // Maximum width of each card in dp
+        crossAxisSpacing: 8.0,   // Space between columns
+        mainAxisSpacing: 8.0,    // Space between rows
+        childAspectRatio: 0.8,   // Adjust card's width-to-height ratio (lower = taller)
       ),
       itemBuilder: (context, index) {
         final device = devices[index];

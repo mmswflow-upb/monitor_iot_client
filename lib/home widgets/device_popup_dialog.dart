@@ -77,23 +77,78 @@ class _DevicePopupDialogState extends State<DevicePopupDialog> {
 
   /// Builds content for an RGB Lamp device
   Widget _buildRgbLampContent(Map<String, dynamic> device) {
-    return Column(
-      children: [
-        // Use a color picker to let user pick color
-        BlockPicker(
-          pickerColor: widget.currentColor,
-          onColorChanged: (color) {
-            widget.onColorChanged(color);
-          },
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: widget.onSetColorPressed,
-          child: const Text('Set Color'),
-        ),
-      ],
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Extract the current color dynamically from the device data
+        Color selectedColor = Color.fromRGBO(
+          device['data']['r'] ?? 0,
+          device['data']['g'] ?? 0,
+          device['data']['b'] ?? 0,
+          1.0,
+        );
+
+        return Column(
+          children: [
+            // Label for the color picker
+            const Text(
+              'Pick a Color for the Lamp:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Current color preview
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: selectedColor, // Display the current color
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black, width: 1),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ColorPicker for selecting a color
+            ColorPicker(
+              pickerColor: selectedColor, // Use the latest selected color
+              onColorChanged: (color) {
+                // Update the local color
+                setState(() {
+                  selectedColor = color;
+                });
+
+                // Call the parent `onColorChanged` to notify updates
+                widget.onColorChanged(color);
+              },
+              pickerAreaHeightPercent: 0.7, // Adjust picker height
+            ),
+            const SizedBox(height: 16),
+
+            // Set Color button
+            ElevatedButton(
+              onPressed: () {
+                // Call the parent `onSetColorPressed` to finalize the update
+                widget.onSetColorPressed();
+              },
+              child: const Text('Set Color'),
+            ),
+          ],
+        );
+      },
     );
   }
+
+
+
+
+
+
+
+
+
 
   /// Builds content for a Camera device
   Widget _buildCameraContent(Map<String, dynamic> device) {

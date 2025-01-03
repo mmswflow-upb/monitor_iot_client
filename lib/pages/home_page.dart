@@ -21,7 +21,7 @@ class _HomePageState extends State<HomePage> {
   final ValueNotifier<List<Map<String, dynamic>>> devicesNotifier =  ValueNotifier<List<Map<String, dynamic>>>([]);
   final Map<String, Completer<void>> openPopups = {}; // Track open popups by deviceId
 
-  Color _currentColor = Colors.white; // Default color for the RGB lamp
+  final Color _currentColor = Colors.white; // Default color for the RGB lamp
 
   @override
   void initState() {
@@ -103,6 +103,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showDialog(String title, String content) {
+    if(!mounted) return;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -168,16 +170,32 @@ class _HomePageState extends State<HomePage> {
         return DevicePopupDialog(
           deviceNotifier: deviceNotifier,
           currentColor: _currentColor,
-          onColorChanged: (color) {
-            setState(() {
-              _currentColor = color;
-            });
+          onColorChanged: (Color color) {
+            // Update the RGB values in the device's data
+            final updatedDevice = {
+              ...deviceNotifier.value,
+              'data': {
+                ...deviceNotifier.value['data'],
+                'r': color.red, // Update red value
+                'g': color.green, // Update green value
+                'b': color.blue, // Update blue value
+              },
+            };
+
+            deviceNotifier.value = updatedDevice;
+
+            // Optionally sync the state to the server or log for debugging
           },
+
+
           onSetColorPressed: () {
-            _updateDeviceState(deviceNotifier.value);
-            // You can decide whether or not to pop the dialog here
-            // Navigator.of(context).pop();
+            // Optionally, do something with `deviceNotifier.value`:
+            // e.g., send an update to the server
+            final device = deviceNotifier.value;
+
+            _updateDeviceState(device); // If you have a function to sync to server
           },
+
           onActiveChanged: (bool active) {
             final updatedDevice = {
               ...deviceNotifier.value,
@@ -273,6 +291,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     channel.sink.close();
+
     devicesNotifier.dispose();
     super.dispose();
   }

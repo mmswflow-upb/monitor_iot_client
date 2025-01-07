@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'login_page.dart';
 import '../home widgets/device_grid.dart';
 import '../home widgets/device_popup_dialog.dart';
+import 'package:monitor_iot_client/theme_manager.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -264,11 +265,41 @@ class _HomePageState extends State<HomePage> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: Icon(
+              ThemeManager.themeNotifier.value == ThemeMode.light
+                  ? Icons.dark_mode
+                  : Icons.light_mode,
+            ),
             onPressed: () {
-              channel.sink.close();
-              removeToken();
-              _navigateToLogin();
+              setState(() {
+                ThemeManager.toggleTheme(); // Update the theme
+              });
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              // Close WebSocket connection
+              try {
+                await channel.sink.close();
+                            } catch (e) {
+                debugPrint('Error closing WebSocket: $e');
+              }
+
+              // Clear user data
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              await prefs.remove('jwt_token');
+              await prefs.remove('user_id');
+
+              // Navigate to LoginPage
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                      (route) => false, // Remove all previous routes
+                );
+              }
             },
           ),
         ],
